@@ -5,21 +5,27 @@ import { socket } from "../socket";
 import JoinRoom from "./components/JoinRoom";
 import ChatBox from "./components/ChatBox";
 
+interface Message {
+  isSystem: boolean;
+  sender: string;
+  content: string;
+}
+
 export default function Home() {
-  const [roomCode, setRoomCode] = useState("");
-  const [thisuser, setThisuser] = useState("");
-  const [messages , setMessages] = useState([]);
+  const [roomCode, setRoomCode] = useState<string>("");
+  const [thisuser, setThisuser] = useState<string>("");
+  const [messages , setMessages] = useState<Message[]>([]);
 
   useEffect(() => {
-    socket.on("userJoined", function({ roomCode, username }) {
+    socket.on("userJoined", function({ roomCode, username } : { roomCode: string; username: string }) {
       setMessages((prevMessages) => [...prevMessages, {isSystem: true, sender: username, content: "joined the room"}]);
     });
-    socket.on("receiveMessage", function({ username, message }) {
+    socket.on("receiveMessage", function({ username, message } : { username: string; message: string }) {
       setMessages((prevMessages) => [...prevMessages, {isSystem: false, sender: username, content: message}]); 
     });
 
     return () => {
-      socket.off("userJoined", function({ roomCode, username }) {
+      socket.off("userJoined", function({ roomCode, username } : { roomCode: string; username: string }) {
         setMessages((prevMessages) => [...prevMessages, {isSystem: true, sender: username, content: "left the room"}]);
       });
       socket.off("receiveMessage");
