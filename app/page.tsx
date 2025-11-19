@@ -6,62 +6,40 @@ import JoinRoom from "./components/JoinRoom";
 import ChatBox from "./components/ChatBox";
 
 export default function Home() {
-  const [isConnected, setIsConnected] = useState(false);
-  const [transport, setTransport] = useState("N/A");
   const [roomCode, setRoomCode] = useState("");
-  const [username, setUsername] = useState("");
-  const [messages , setMessages] = useState([""]);
+  const [thisuser, setThisuser] = useState("");
+  const [messages , setMessages] = useState([]);
 
   useEffect(() => {
-    if (socket.connected) {
-      onConnect();
-    }
-
-    function onConnect() {
-      setIsConnected(true);
-      setTransport(socket.io.engine.transport.name);
-
-      socket.io.engine.on("upgrade", (transport) => {
-        setTransport(transport.name);
-      });
-    }
-
-    function onDisconnect() {
-      setIsConnected(false);
-      setTransport("N/A");
-    }
-
-    socket.on("connect", onConnect);
-    socket.on("disconnect", onDisconnect);
     socket.on("userJoined", function({ roomCode, username }) {
-      setMessages((prevMessages) => [...prevMessages, `${username} joined`]);
+      setMessages((prevMessages) => [...prevMessages, {isSystem: true, sender: username, content: "joined the room"}]);
     });
     socket.on("receiveMessage", function({ username, message }) {
-      setMessages((prevMessages) => [...prevMessages, `${username}: ${message}`]); 
+      setMessages((prevMessages) => [...prevMessages, {isSystem: false, sender: username, content: message}]); 
     });
 
     return () => {
-      socket.off("connect", onConnect);
-      socket.off("disconnect", onDisconnect);
+      socket.off("userJoined", function({ roomCode, username }) {
+        setMessages((prevMessages) => [...prevMessages, {isSystem: true, sender: username, content: "left the room"}]);
+      });
+      socket.off("receiveMessage");
     };
   }, []);
   
   function handleJoinRoom(roomCode : string, username : string) {
-    socket.emit("joinRoom", {roomCode, username});
     setRoomCode(roomCode);
-    setUsername(username);
+    setThisuser(username);
+    socket.emit("joinRoom", {roomCode, username});
   }
 
   function handleSendMessage(message : string) {
-    socket.emit("sendMessage", {roomCode, username, message});
+    socket.emit("sendMessage", {roomCode, username: thisuser, message});
   }
 
   return (
     <div>
-      <p>Status: { isConnected ? "connected" : "disconnected" }</p>
-      <p>Transport: { transport }</p>
       { roomCode === "" && <JoinRoom handleJoinRoom={handleJoinRoom}/> }
-      { roomCode !== "" && <ChatBox roomCode={roomCode} username={username} messages={messages} handleSendMessage={handleSendMessage}/> }
+      { roomCode !== "" && <ChatBox roomCode={roomCode} username={thisuser} messages={messages} handleSendMessage={handleSendMessage}/> }
     </div>
   );
 }
